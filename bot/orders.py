@@ -82,8 +82,6 @@ class OrderManager:
         Raises:
             ValueError: If order type is invalid or required parameters missing
         """
-        logger.info(f"Placing {order_type} order: {side} {quantity} {symbol}")
-        
         if order_type == 'MARKET':
             return self.place_market_order(symbol, side, quantity)
         elif order_type == 'LIMIT':

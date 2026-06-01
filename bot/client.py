@@ -74,8 +74,9 @@ class BinanceClient:
             params['timestamp'] = int(time.time() * 1000)
             params['signature'] = self._generate_signature(params)
         
-        logger.info(f"Making {method} request to {endpoint}")
-        logger.debug(f"Request params: {params}")
+        # Log request details (omit signature for security)
+        safe_params = {k: v for k, v in params.items() if k != 'signature'}
+        logger.info(f"Making {method} request to {endpoint} | params: {safe_params}")
         
         try:
             if method == 'GET':
@@ -90,14 +91,19 @@ class BinanceClient:
             response.raise_for_status()
             data = response.json()
             
-            logger.info(f"Request successful: {response.status_code}")
-            logger.debug(f"Response data: {data}")
+            logger.info(f"Response [{response.status_code}]: {data}")
             
             return data
         
         except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error occurred: {e}")
-            logger.error(f"Response content: {e.response.text}")
+            error_body = e.response.text if e.response else "No response body"
+            logger.error(f"HTTP error {e.response.status_code if e.response else 'unknown'}: {error_body}")
+            raise
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Network connection failed: {e}")
+            raise
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Request timed out: {e}")
             raise
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed: {e}")

@@ -47,27 +47,29 @@ def show_order_result(response):
     click.echo(f"Quantity:       {response.get('origQty', 'N/A')}")
     click.echo(f"Executed Qty:   {response.get('executedQty', 'N/A')}")
     
-    if 'avgPrice' in response and response['avgPrice'] != '0':
-        click.echo(f"Avg Price:      {response.get('avgPrice', 'N/A')}")
+    avg_price = response.get('avgPrice', '0')
+    if avg_price and avg_price != '0':
+        click.echo(f"Avg Price:      {avg_price}")
     
     click.echo("="*50 + "\n")
 
 @click.command()
 @click.option('--symbol', '-s', required=True, help='Trading symbol like BTCUSDT')
-@click.option('--side', '-d', required=True, type=click.Choice(['BUY', 'SELL', 'buy', 'sell'], case_sensitive=False), help='BUY or SELL')
-@click.option('--type', '-t', 'order_type', required=True, type=click.Choice(['MARKET', 'LIMIT', 'market', 'limit'], case_sensitive=False), help='MARKET or LIMIT')
+@click.option('--side', '-d', required=True, type=click.Choice(['BUY', 'SELL'], case_sensitive=False), help='BUY or SELL')
+@click.option('--type', '-t', 'order_type', required=True, type=click.Choice(['MARKET', 'LIMIT'], case_sensitive=False), help='MARKET or LIMIT')
 @click.option('--quantity', '-q', required=True, type=float, help='How much to trade')
 @click.option('--price', '-p', type=float, default=None, help='Price for limit orders')
 def place_order(symbol, side, order_type, quantity, price):
     """
-    Place an order on Binance Futures Testnet
-    
+    Place an order on Binance Futures Testnet.
+
+    \b
     Examples:
-    
-    Market order:
+
+      Market order:
         python cli.py -s BTCUSDT -d BUY -t MARKET -q 0.001
-    
-    Limit order:
+
+      Limit order:
         python cli.py -s BTCUSDT -d SELL -t LIMIT -q 0.001 -p 45000
     """
     try:
@@ -76,20 +78,20 @@ def place_order(symbol, side, order_type, quantity, price):
         api_secret = os.getenv('BINANCE_API_SECRET')
         
         if not api_key or not api_secret:
-            click.echo(click.style("Error: Can't find API keys!", fg="red"))
-            click.echo("Make sure you have a .env file with your keys")
-            logger.error("API keys not found")
+            click.echo(click.style("Error: API keys not found in environment!", fg="red"))
+            click.echo("Create a .env file with BINANCE_API_KEY and BINANCE_API_SECRET")
+            logger.error("API keys missing from environment")
             sys.exit(1)
         
-        # Validate everything
-        logger.info("Checking inputs...")
+        # Validate all inputs
+        logger.info("Validating inputs...")
         symbol = validate_symbol(symbol)
         side = validate_side(side)
         order_type = validate_order_type(order_type)
         quantity = validate_quantity(quantity)
         price = validate_price(price, order_type)
         
-        # Show what we're doing
+        # Show summary of what we're about to do
         show_order_summary(symbol, side, order_type, quantity, price)
         
         # Set up the client and order manager
@@ -98,14 +100,14 @@ def place_order(symbol, side, order_type, quantity, price):
         
         # Place the order
         click.echo(click.style("Placing order...", fg="yellow"))
+        logger.info(f"Submitting {order_type} {side} order for {quantity} {symbol}")
         response = order_manager.place_order(symbol, side, order_type, quantity, price)
         
         # Show the result
         show_order_result(response)
         
-        # Success!
         click.echo(click.style("✓ Order placed successfully!", fg="green", bold=True))
-        logger.info(f"Order placed: ID {response.get('orderId')}")
+        logger.info(f"Order confirmed: ID={response.get('orderId')} status={response.get('status')}")
         
     except ValidationError as e:
         click.echo(click.style(f"Validation Error: {str(e)}", fg="red"))
@@ -114,7 +116,7 @@ def place_order(symbol, side, order_type, quantity, price):
     
     except Exception as e:
         click.echo(click.style(f"Error: {str(e)}", fg="red"))
-        logger.exception("Something went wrong")
+        logger.exception("Unexpected error while placing order")
         sys.exit(1)
 
 if __name__ == '__main__':
